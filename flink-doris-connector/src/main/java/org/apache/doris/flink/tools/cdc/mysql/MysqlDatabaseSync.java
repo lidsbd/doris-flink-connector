@@ -54,6 +54,9 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ *
+ */
 public class MysqlDatabaseSync extends DatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(MysqlDatabaseSync.class);
     private static final String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
@@ -131,6 +134,7 @@ public class MysqlDatabaseSync extends DatabaseSync {
         String databaseName = config.get(MySqlSourceOptions.DATABASE_NAME);
         Preconditions.checkNotNull(databaseName, "database-name in mysql is required");
         String tableName = config.get(MySqlSourceOptions.TABLE_NAME);
+
         sourceBuilder
                 .hostname(config.get(MySqlSourceOptions.HOSTNAME))
                 .port(config.get(MySqlSourceOptions.PORT))

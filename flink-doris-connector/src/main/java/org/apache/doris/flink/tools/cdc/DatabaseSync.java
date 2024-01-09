@@ -93,6 +93,9 @@ public abstract class DatabaseSync {
         registerDriver();
     }
 
+    /**
+     * 根据传入的配置信息，对本类成员变量进行简单加工
+     */
     public void create() {
         this.includingPattern = includingTables == null ? null : Pattern.compile(includingTables);
         this.excludingPattern = excludingTables == null ? null : Pattern.compile(excludingTables);
@@ -105,9 +108,11 @@ public abstract class DatabaseSync {
     }
 
     public void build() throws Exception {
+        //检验并拿到doris的连接信息
         DorisConnectionOptions options = getDorisConnectionOptions();
+        //创建连接doris的客户端
         DorisSystem dorisSystem = new DorisSystem(options);
-
+        //
         List<SourceSchema> schemaList = getSchemaList();
         Preconditions.checkState(!schemaList.isEmpty(), "No tables to be synchronized.");
         if (!dorisSystem.databaseExists(database)) {

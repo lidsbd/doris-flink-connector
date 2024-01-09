@@ -40,6 +40,46 @@ public class CdcTools {
     private static final String SQLSERVER_SYNC_DATABASE = "sqlserver-sync-database";
     private static final List<String> EMPTY_KEYS = Arrays.asList("password");
 
+    /**
+     * 使用说明：
+     * bin/flink run \
+     *     -c org.apache.doris.flink.tools.cdc.CdcTools \
+     *     lib/flink-doris-connector-1.16-1.4.0-SNAPSHOT.jar \
+     *     <mysql-sync-database|oracle-sync-database|postgres-sync-database|sqlserver-sync-database> \
+     *     --database <doris-database-name> \
+     *     [--job-name <flink-job-name>] \
+     *     [--table-prefix <doris-table-prefix>] \
+     *     [--table-suffix <doris-table-suffix>] \
+     *     [--including-tables <mysql-table-name|name-regular-expr>] \
+     *     [--excluding-tables <mysql-table-name|name-regular-expr>] \
+     *     --mysql-conf <mysql-cdc-source-conf> [--mysql-conf <mysql-cdc-source-conf> ...] \
+     *     --oracle-conf <oracle-cdc-source-conf> [--oracle-conf <oracle-cdc-source-conf> ...] \
+     *     --sink-conf <doris-sink-conf> [--table-conf <doris-sink-conf> ...] \
+     *     [--table-conf <doris-table-conf> [--table-conf <doris-table-conf> ...]]
+     *
+     * 使用案例
+     *       <FLINK_HOME>bin/flink run \
+     *     -Dexecution.checkpointing.interval=10s \
+     *     -Dparallelism.default=1 \
+     *     -c org.apache.doris.flink.tools.cdc.CdcTools \
+     *     lib/flink-doris-connector-1.16-1.4.0-SNAPSHOT.jar \
+     *     mysql-sync-database \
+     *     --database test_db \
+     *     --mysql-conf hostname=127.0.0.1 \
+     *     --mysql-conf port=3306 \
+     *     --mysql-conf username=root \
+     *     --mysql-conf password=123456 \
+     *     --mysql-conf database-name=mysql_db \
+     *     --including-tables "tbl1|test.*" \
+     *     --sink-conf fenodes=127.0.0.1:8030 \
+     *     --sink-conf username=root \
+     *     --sink-conf password=123456 \
+     *     --sink-conf jdbc-url=jdbc:mysql://127.0.0.1:9030 \
+     *     --sink-conf sink.label-prefix=label \
+     *     --table-conf replication_num=1
+     *  @param args
+     * @throws Exception
+     */
     public static void main(String[] args) throws Exception {
         String operation = args[0].toLowerCase();
         String[] opArgs = Arrays.copyOfRange(args, 1, args.length);
@@ -66,6 +106,7 @@ public class CdcTools {
     private static void createMySQLSyncDatabase(String[] opArgs) throws Exception {
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
         Map<String, String> mysqlMap = getConfigMap(params, "mysql-conf");
+        //取出mysql相关配置信息
         Configuration mysqlConfig = Configuration.fromMap(mysqlMap);
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         syncDatabase(params, databaseSync, mysqlConfig, "MySQL");
@@ -95,12 +136,22 @@ public class CdcTools {
         syncDatabase(params, databaseSync, postgresConfig, "SqlServer");
     }
 
+    /**
+     * private类型：只能在本类中调用，子类也会继承但是不能直接调用
+     *
+     * @param params ：接收到启动任务的配置参数
+     * @param databaseSync ：创建的MysqlDatabaseSync稍后研究做什么用
+     * @param config ：源数据库的配置，如果是mysql就是mysqlConfig
+     * @param type: 元数据是mysql就是传MYSQL
+     * @throws Exception
+     */
     private static void syncDatabase(
             MultipleParameterTool params,
             DatabaseSync databaseSync,
             Configuration config,
             String type)
             throws Exception {
+        // TODO 初始化配置信息完成
         String jobName = params.get("job-name");
         String database = params.get("database");
         String tablePrefix = params.get("table-prefix");
@@ -118,6 +169,7 @@ public class CdcTools {
         Map<String, String> tableMap = getConfigMap(params, "table-conf");
         Configuration sinkConfig = Configuration.fromMap(sinkMap);
 
+        //TODO 构建Flink运行环境
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         databaseSync
                 .setEnv(env)
@@ -136,6 +188,7 @@ public class CdcTools {
                 .setNewSchemaChange(useNewSchemaChange)
                 .setSingleSink(singleSink)
                 .create();
+        //TODO 执行整个采集逻辑
         databaseSync.build();
         if (StringUtils.isNullOrWhitespaceOnly(jobName)) {
             jobName =
